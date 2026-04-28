@@ -107,7 +107,7 @@ namespace NexumAPI.Services
                 var (locked, _) = _lockout.RecordFailedAttempt(ip, loginDto.EmployeeId);
                 int failCount   = _lockout.GetAccountFailedAttempts(loginDto.EmployeeId);
                 return new { success = false, locked, requireCaptcha = failCount >= 3,
-                             attemptsLeft = Math.Max(0, 5 - failCount),
+                             attemptsLeft = Math.Max(0, _lockout.MaxAttempts - failCount),
                              remainingMinutes = locked ? 15 : 0, message = "Invalid credentials." };
             }
 
@@ -146,7 +146,7 @@ namespace NexumAPI.Services
                 }
 
                 return new { success = false, locked, requireCaptcha = failCount >= 3,
-                             attemptsLeft = Math.Max(0, 5 - failCount),
+                             attemptsLeft = Math.Max(0, _lockout.MaxAttempts - failCount),
                              remainingMinutes = locked ? 15 : 0, message = "Invalid credentials." };
             }
 
@@ -157,12 +157,30 @@ namespace NexumAPI.Services
             _lockout.ResetAttempts(ip, loginDto.EmployeeId);
 
             var otp       = await GenerateOtpAsync(user.Id);
+
+            // ✅ Check global MFA config first
+            var mfaConfig = await _context.MfaConfigs.FirstOrDefaultAsync();
+
+            // ✅ Get allowed methods for this user's role
+            var userRole = user.UserRoles.FirstOrDefault()?.Role;
+            var roleAllowedMethods = (userRole?.AllowedMfaMethods ?? "SMS,Email")
+                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(m => m.Trim().ToLower())
+                .ToList();
+
             var smsSent   = false;
             var emailSent = false;
 
-            if (!string.IsNullOrEmpty(user.Phone))
+            // ✅ Only send SMS if: global SMS is enabled AND role allows SMS
+            if ((mfaConfig?.SmsEnabled ?? true) 
+                && roleAllowedMethods.Contains("sms") 
+                && !string.IsNullOrEmpty(user.Phone))
                 smsSent = await _sms.SendOtpAsync(user.Phone, otp);
-            if (!string.IsNullOrEmpty(user.Email))
+
+            // ✅ Only send Email if: global Email is enabled AND role allows Email
+            if ((mfaConfig?.EmailEnabled ?? true) 
+                && roleAllowedMethods.Contains("email") 
+                && !string.IsNullOrEmpty(user.Email))
                 emailSent = await _email.SendOtpAsync(user.Email, user.Name, otp);
 
             Console.ForegroundColor = ConsoleColor.Cyan;

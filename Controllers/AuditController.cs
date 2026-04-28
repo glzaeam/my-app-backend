@@ -539,5 +539,86 @@ namespace NexumAPI.Controllers
             }
             return Ok(months);
         }
+
+        // GET /api/audit/my-activity — any logged-in user sees their own activity
+        [HttpGet("my-activity")]
+        public async Task<IActionResult> GetMyActivity([FromQuery] int limit = 20)
+        {
+            var sub = User.FindFirst("sub")?.Value
+                   ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(sub) || !Guid.TryParse(sub, out var userId))
+                return Unauthorized();
+
+            var logs = await _context.AuditLogs
+                .Where(a => a.UserId == userId &&
+                            !a.Action.StartsWith("GET ")    &&
+                            !a.Action.StartsWith("POST ")   &&
+                            !a.Action.StartsWith("PUT ")    &&
+                            !a.Action.StartsWith("DELETE ") &&
+                            !a.Action.StartsWith("PATCH "))
+                .OrderByDescending(a => a.CreatedAt)
+                .Take(limit)
+                .Select(a => new {
+                    a.Id,
+                    a.Action,
+                    a.Module,
+                    a.Details,
+                    a.Status,
+                    a.IpAddress,
+                    a.CreatedAt,
+                })
+                .ToListAsync();
+
+            // Also get recent login attempts
+            var logins = await _context.LoginAttempts
+                .Where(l => l.UserId == userId)
+                .OrderByDescending(l => l.AttemptedAt)
+                .Take(10)
+                .Select(l => new {
+                    Id        = l.Id,
+                    Action    = l.Status == "Success" ? "Login Success" : "Login Failed",
+                    Module    = "Authentication",
+                    Details   = $"IP: {l.IpAddress ?? "unknown"}",
+                    Status    = l.Status,
+                    IpAddress = l.IpAddress,
+                    CreatedAt = l.AttemptedAt,
+                })
+                .ToListAsync();
+
+            // Merge and sort by date
+            var combined = logs
+                .Select(a => new {
+                    a.Action, a.Module, a.Details,
+                    a.Status, a.IpAddress, a.CreatedAt
+                })
+                .Concat(logins.Select(l => new {
+                    l.Action, l.Module, l.Details,
+                    l.Status, l.IpAddress, l.CreatedAt
+                }))
+                .OrderByDescending(x => x.CreatedAt)
+                .Take(limit)
+                .ToList();
+
+            // Also get login count and last login
+            var totalLogins = await _context.LoginAttempts
+                .CountAsync(l => l.UserId == userId && l.Status == "Success");
+            var lastLogin = await _context.LoginAttempts
+                .Where(l => l.UserId == userId && l.Status == "Success")
+                .OrderByDescending(l => l.AttemptedAt)
+                .Select(l => (DateTime?)l.AttemptedAt)
+                .FirstOrDefaultAsync();
+            var deviceCount = await _context.Devices
+                .CountAsync(d => d.UserId == userId);
+
+            return Ok(new {
+                activities = combined,
+                summary = new {
+                    totalLogins,
+                    lastLogin,
+                    deviceCount,
+                }
+            });
+        }
     }
 }

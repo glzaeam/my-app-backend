@@ -33,4 +33,5 @@ public class User
     public ICollection<SecurityAlert> SecurityAlerts { get; set; } = new List<SecurityAlert>();
     public ICollection<LoginAttempt> LoginAttempts { get; set; } = new List<LoginAttempt>();
     public ICollection<MfaSetting> MfaSettings { get; set; } = new List<MfaSetting>();
+    public ICollection<MfaConfig> MfaConfigs { get; set; } = new List<MfaConfig>();
 }

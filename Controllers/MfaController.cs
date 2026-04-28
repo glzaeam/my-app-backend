@@ -39,7 +39,7 @@ namespace NexumAPI.Controllers
 
         // PUT /api/mfa/config
         [HttpPut("config")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "System Admin")]
         public async Task<IActionResult> SaveConfig([FromBody] MfaConfigRequest dto)
         {
             var config = await _context.MfaConfigs.FirstOrDefaultAsync();
@@ -81,7 +81,7 @@ namespace NexumAPI.Controllers
 
         // PUT /api/mfa/roles/{id}
         [HttpPut("roles/{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "System Admin")]
         public async Task<IActionResult> UpdateRoleMfa(Guid id, [FromBody] RoleMfaRequest dto)
         {
             var role = await _context.Roles.FindAsync(id);

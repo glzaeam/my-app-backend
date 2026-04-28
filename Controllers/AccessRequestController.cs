@@ -113,6 +113,9 @@ namespace NexumAPI.Controllers
                 return Ok(new { success = false, message = "Request already reviewed" });
 
             var reviewerName = User.FindFirst("name")?.Value ?? "System Admin";
+            var reviewerIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                             ?? User.FindFirst("sub")?.Value;
+            Guid? reviewerId = Guid.TryParse(reviewerIdStr, out var parsedId) ? parsedId : null;
 
             if (dto.Action == "Approve")
             {
@@ -152,7 +155,7 @@ namespace NexumAPI.Controllers
                 });
 
                 request.Status     = "Approved";
-                request.ReviewedBy = reviewerName;
+                request.ReviewedBy = reviewerId;
                 request.ReviewedAt = DateTime.UtcNow;
 
                 await _context.SaveChangesAsync();
@@ -164,7 +167,7 @@ namespace NexumAPI.Controllers
             else if (dto.Action == "Reject")
             {
                 request.Status          = "Rejected";
-                request.ReviewedBy      = reviewerName;
+                request.ReviewedBy      = reviewerId;
                 request.ReviewedAt      = DateTime.UtcNow;
                 request.RejectionReason = dto.RejectionReason;
 
