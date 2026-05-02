@@ -1,4 +1,5 @@
 namespace NexumAPI.Models;
+
 public class LoginSetting
 {
     public Guid Id { get; set; }
@@ -7,6 +8,8 @@ public class LoginSetting
     public int CaptchaAfter { get; set; } = 3;
     public bool IpWhitelistEnabled { get; set; }
     public string? AllowedIps { get; set; }
-    public int SessionTimeoutMinutes { get; set; } = 480;
+    public int SessionTimeoutMinutes { get; set; } = 15;
+    public int MaxSessionDurationHours { get; set; } = 8;
     public int MaxConcurrentSessions { get; set; } = 3;
+    public bool ForceLogoutOnNew { get; set; } = true;  // 
 }

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NexumAPI.Data;
+using NexumAPI.Helpers;
 
 namespace NexumAPI.Controllers
 {
@@ -17,13 +18,18 @@ namespace NexumAPI.Controllers
         [HttpGet]
         [Authorize(Policy = "BranchManager")]
         public async Task<IActionResult> GetLogs(
-            [FromQuery] int     limit     = 500,
+            [FromQuery] int     page      = 1,
+            [FromQuery] int     pageSize  = 10,
             [FromQuery] string? action    = null,
             [FromQuery] string? status    = null,
             [FromQuery] string? search    = null,
             [FromQuery] string? module    = null,
             [FromQuery] string? dateRange = null)
         {
+            // Validate pagination parameters
+            page = PaginationHelper.ValidatePage(page);
+            pageSize = PaginationHelper.ValidatePageSize(pageSize);
+
             var query = _context.AuditLogs
                 .Include(a => a.User)
                 .AsQueryable();
@@ -61,9 +67,13 @@ namespace NexumAPI.Controllers
                     query = query.Where(a => a.CreatedAt >= from.Value);
             }
 
+            // Get total count before pagination
+            var totalItems = await query.CountAsync();
+
             var logs = await query
                 .OrderByDescending(a => a.CreatedAt)
-                .Take(limit)
+                .Skip(PaginationHelper.CalculateSkip(page, pageSize))
+                .Take(pageSize)
                 .Select(a => new {
                     a.Id,
                     a.Action,
@@ -78,7 +88,12 @@ namespace NexumAPI.Controllers
                 })
                 .ToListAsync();
 
-            return Ok(logs);
+            return Ok(new PaginatedResponse<dynamic>(
+                logs.Cast<dynamic>().ToList(),
+                page,
+                pageSize,
+                totalItems
+            ));
         }
 
         // GET /api/audit/summary — Auditor and above
@@ -98,10 +113,16 @@ namespace NexumAPI.Controllers
         [HttpGet("transactions")]
         [Authorize(Policy = "Auditor")]
         public async Task<IActionResult> GetTransactions(
+            [FromQuery] int     page      = 1,
+            [FromQuery] int     pageSize  = 10,
             [FromQuery] string? search    = null,
             [FromQuery] string? module    = null,
             [FromQuery] string? dateRange = null)
         {
+            // Validate pagination parameters
+            page = PaginationHelper.ValidatePage(page);
+            pageSize = PaginationHelper.ValidatePageSize(pageSize);
+
             var query = _context.TransactionTrails
                 .Include(t => t.Performer)
                 .Include(t => t.TargetUser)
@@ -132,9 +153,13 @@ namespace NexumAPI.Controllers
                     query = query.Where(t => t.CreatedAt >= from.Value);
             }
 
+            // Get total count before pagination
+            var totalItems = await query.CountAsync();
+
             var trails = await query
                 .OrderByDescending(t => t.CreatedAt)
-                .Take(500)
+                .Skip(PaginationHelper.CalculateSkip(page, pageSize))
+                .Take(pageSize)
                 .Select(t => new {
                     t.Id,
                     t.TxnId,
@@ -150,7 +175,12 @@ namespace NexumAPI.Controllers
                 })
                 .ToListAsync();
 
-            return Ok(trails);
+            return Ok(new PaginatedResponse<dynamic>(
+                trails.Cast<dynamic>().ToList(),
+                page,
+                pageSize,
+                totalItems
+            ));
         }
 
         // GET /api/audit/export — Auditor and above

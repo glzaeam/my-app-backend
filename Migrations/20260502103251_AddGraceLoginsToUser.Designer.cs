@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NexumAPI.Data;
 
@@ -11,9 +12,11 @@ using NexumAPI.Data;
 namespace NexumAPI.Migrations
 {
     [DbContext(typeof(NexumDbContext))]
-    partial class NexumDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260502103251_AddGraceLoginsToUser")]
+    partial class AddGraceLoginsToUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -237,9 +240,6 @@ namespace NexumAPI.Migrations
                     b.Property<int>("CaptchaAfter")
                         .HasColumnType("int");
 
-                    b.Property<bool>("ForceLogoutOnNew")
-                        .HasColumnType("bit");
-
                     b.Property<bool>("IpWhitelistEnabled")
                         .HasColumnType("bit");
 
@@ -250,9 +250,6 @@ namespace NexumAPI.Migrations
                         .HasColumnType("int");
 
                     b.Property<int>("MaxFailedAttempts")
-                        .HasColumnType("int");
-
-                    b.Property<int>("MaxSessionDurationHours")
                         .HasColumnType("int");
 
                     b.Property<int>("SessionTimeoutMinutes")
@@ -385,17 +382,11 @@ namespace NexumAPI.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("ChangedBy")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Reason")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<Guid>("UserId")
